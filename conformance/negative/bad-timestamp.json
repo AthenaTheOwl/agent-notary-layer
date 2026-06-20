@@ -1,0 +1,10 @@
+{
+  "receipt_id": "01J7Z9PM4N2X3F0K0F0A0J3T1Y",
+  "prior_receipt_id": null,
+  "action_canonical_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sender_identity": "did:web:example.test/agents/buyer-1",
+  "receiver_identity": "did:web:example.test/agents/seller-1",
+  "timestamp": "2026-07-04 14:22:31+00:00",
+  "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+  "signature_algorithm": "ed25519"
+}
