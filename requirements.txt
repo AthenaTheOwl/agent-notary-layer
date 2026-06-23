@@ -1,0 +1,5 @@
+# Streamlit Community Cloud reads this file. The demo runs the real reference
+# verifier (src/notary/), so it needs the verifier's runtime deps too.
+streamlit>=1.40
+jsonschema>=4.21,<5
+PyNaCl>=1.5,<2

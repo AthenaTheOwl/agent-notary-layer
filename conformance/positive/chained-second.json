@@ -5,6 +5,6 @@
   "sender_identity": "did:web:example.test/agents/seller-1",
   "receiver_identity": "did:web:example.test/agents/buyer-1",
   "timestamp": "2026-07-04T14:22:33Z",
-  "signature": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB==",
+  "signature": "4/t6ud/WfFwctRSfvrfgGQIw5kMTi9HLmZOcGpSDMz5kDy4H4Njo+c5p23Okh2k96stbLm19Zxzgzak5n/reDA==",
   "signature_algorithm": "ed25519"
 }
