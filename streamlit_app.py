@@ -23,6 +23,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from notary.verifier import (  # noqa: E402
+    REJECT_CODES,
     FileKeyResolver,
     VerifyError,
     order_and_check,
@@ -106,6 +107,92 @@ if st.button("verify", type="primary"):
                     st.warning("tamper went UNDETECTED -- this should not happen")
                 else:
                     st.info(f"tampered copy correctly REJECTED -- {t_reason}")
+
+st.divider()
+st.subheader("verify your own chain")
+st.caption(
+    "the committed fixtures form one linear chain, but you only ever saw the "
+    "happy path. here you drive the real chain engine (notary.verifier."
+    "order_and_check) on receipts YOU edit. it topologically orders them "
+    "root-first and rejects broken structure -- missing root, multiple roots, "
+    "a dangling prior pointer, a fork, or a cycle. each surviving receipt is "
+    "then re-verified with the real ed25519 verifier. mutate the JSON below and "
+    "watch the verdict change live."
+)
+
+chain_default = "[\n" + ",\n".join(
+    fixtures[k].read_text(encoding="utf-8").strip()
+    for k in ("positive/minimal.json", "positive/chained-second.json", "positive/chained-third.json")
+    if k in fixtures
+) + "\n]"
+
+with st.expander("what breaks a chain (try these edits)", expanded=False):
+    st.markdown(
+        "- delete the receipt whose `prior_receipt_id` is `null` -> "
+        "`chain_no_root`\n"
+        "- set two receipts' `prior_receipt_id` to the same value -> "
+        "`chain_not_linear` (a fork)\n"
+        "- point a receipt's `prior_receipt_id` at an id that is not in the "
+        "list -> `chain_break`\n"
+        "- make the receipts point at each other in a loop -> `cycle_detected`\n"
+        "- flip a hex digit in any `action_canonical_hash` -> the structure "
+        "still orders, but that receipt's `signature_invalid` shows up in the "
+        "per-receipt column"
+    )
+
+chain_text = st.text_area(
+    "receipts (a JSON array)",
+    value=chain_default,
+    height=360,
+    key="chain_input",
+)
+
+if st.button("verify chain", type="primary", key="verify_chain_btn"):
+    try:
+        parsed = json.loads(chain_text)
+    except json.JSONDecodeError as e:
+        st.error(f"not valid JSON: {e}")
+        st.stop()
+    if not isinstance(parsed, list):
+        st.error("expected a JSON array of receipt objects")
+        st.stop()
+
+    try:
+        ordered = order_and_check(parsed)
+    except VerifyError as e:
+        st.error(f"chain REJECTED -- {e.code}: {e}")
+        st.caption(f"reject code {e.code} (cli exit {REJECT_CODES.get(e.code, 1)})")
+        st.stop()
+
+    st.success(
+        f"chain structure ACCEPTED -- {len(ordered)} receipts, root-first, "
+        "no breaks, forks, or cycles."
+    )
+    rows = []
+    all_sigs_ok = True
+    for r in ordered:
+        ok, reason = verify_one(r)
+        if not ok:
+            all_sigs_ok = False
+        rid = str(r.get("receipt_id", ""))
+        prior = r.get("prior_receipt_id")
+        rows.append(
+            {
+                "order": len(rows) + 1,
+                "receipt_id": rid[:14] + ("..." if len(rid) > 14 else ""),
+                "prior": "(root)" if prior is None else str(prior)[:14] + "...",
+                "sender": str(r.get("sender_identity", "")).rsplit("/", 1)[-1],
+                "signature": "accept" if ok else f"reject: {reason}",
+            }
+        )
+    st.dataframe(rows, width="stretch", hide_index=True)
+    if all_sigs_ok:
+        st.info("every receipt also passed schema + ed25519 signature verification.")
+    else:
+        st.warning(
+            "structure is sound, but at least one receipt failed signature "
+            "verification (see the signature column)."
+        )
 
 st.divider()
 st.subheader("the committed chain")
