@@ -1,35 +1,64 @@
-# Notary Layer
+# agent-notary-layer
 
-Tamper-evident, receiver-attested receipt schema for every
-cross-organization agent action: PO commit, payment authorization,
-contract redline acceptance. Shipped as a JSON Schema spec plus a
-reference verifier CLI plus a conformance suite. The audit trail
-Agent2Agent and Stripe MPP defined no schema for.
+Flip one hex digit of the action hash and the ed25519 signature stops verifying.
+The receipt that proves one agent told another to commit a purchase order is eight
+fields of JSON and a signature, and it carries none of the business payload it
+attests. A regulator can replay it and learn that the action happened, in what order,
+without ever seeing what was bought.
 
-## What this is
+## What it does
 
-A schema-first repo. Three primary artifacts:
+When two organizations let their agents transact — a PO commit, a payment
+authorization, a contract redline accepted — something has to survive the dispute
+that comes later. The receiver attests it received the instruction. The hash chains
+to the prior receipt so the order can't be reshuffled. The signature breaks the
+moment a field is altered. A2A and Stripe's agent payment work defined the messages
+agents exchange and defined no schema for the receipt of having exchanged them. This
+is that receipt.
 
-1. `spec/agent-receipt.schema.json` — the receipt format itself.
-2. `src/notary/` — a reference verifier (`notary` CLI) that checks
-   receipts against the schema and replays ed25519 signatures.
-3. `conformance/` — the conformance fixtures (positive + negative) that
-   any third-party verifier must reproduce to claim spec compliance.
+It's a schema-first repo. Three artifacts carry it: `spec/agent-receipt.schema.json`
+is the receipt format; `src/notary/` is a reference verifier that checks a receipt
+against the schema and replays its signature; `conformance/` holds the positive and
+negative fixtures any third-party verifier has to reproduce to claim it conforms.
+The receipt holds receiver identity, sender identity, the action's canonical hash,
+the prior-receipt hash, a timestamp, and the signature — and nothing about the
+underlying deal. v0.1 is implemented and tested; the canonicalizer follows RFC 8785.
 
-The receipt is a small JSON object: receiver identity, sender identity,
-action canonical hash, prior-receipt hash (for chaining), timestamp,
-signature. The format is designed to survive a regulator's adversarial
-replay without leaking the underlying business payload.
+## Try it
 
-## Status
+```bash
+uv run notary show
+```
 
-v0.1, implemented and tested. The schema (`spec/agent-receipt.schema.json`),
-the RFC 8785 canonicalizer (`src/notary/canonical.py`), the verifier
-(`src/notary/verifier.py`), and the CLI (`src/notary/cli.py`) are real and
-covered by `tests/`. The Pactum-style worked example under `examples/` is
-still pending.
+```
+notary demo -- verifying bundled conformance receipts
+  keys: E:\claude_code\random-apps\agent-notary-layer\keys
+  conformance: E:\claude_code\random-apps\agent-notary-layer\conformance
 
-## How to run
+positive (expected: ACCEPT)
+  [PASS] chained-second.json    -> accept (signature + schema valid)
+  [PASS] chained-third.json     -> accept (signature + schema valid)
+  [PASS] minimal.json           -> accept (signature + schema valid)
+
+negative (expected: REJECT -- tamper/format detection)
+  [PASS] bad-hash-format.json   -> reject (bad_canonical_hash_format: action_canonical_hash: 'md5:e3b0c44298fc1c149afbf4c8996fb924' does not match '^sha256:[0-9a-f]{64}$')
+  [PASS] bad-timestamp.json     -> reject (schema_invalid: timestamp: '2026-07-04 14:22:31+00:00' does not match '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z$')
+  [PASS] bad-ulid.json          -> reject (schema_invalid: receipt_id: 'not-a-ulid' does not match '^[0-9A-HJKMNP-TV-Z]{26}$')
+  [PASS] extra-field.json       -> reject (schema_invalid: <root>: Additional properties are not allowed ('payload' was unexpected))
+  [PASS] missing-signature.json -> reject (schema_invalid: <root>: 'signature' is a required property)
+  [PASS] wrong-algorithm.json   -> reject (schema_invalid: signature_algorithm: 'rsa-pss' is not one of ['ed25519'])
+
+tamper check (flip one hex digit of a passing receipt)
+  [PASS] chained-second.json: tamper rejected -> signature_invalid
+
+RESULT: all receipts behaved as expected (tamper detection working).
+```
+
+The positives must accept, the negatives must reject, and the last line flips one
+hex digit of a receipt that just passed to watch the signature fail. That row is the
+whole argument.
+
+More ways in:
 
 ```bash
 uv sync
@@ -41,19 +70,17 @@ uv run notary verify-chain conformance/positive --keys-dir keys
 uv run notary show
 ```
 
-Equivalently, `python -m notary <subcommand>` works (the package ships a
-`__main__`). Run `uv run notary --help` for the full subcommand list:
-`verify`, `verify-chain`, `show` (alias `demo`).
+`python -m notary <subcommand>` works the same way (the package ships a `__main__`).
+Run `uv run notary --help` for the full list: `verify`, `verify-chain`, `show`
+(alias `demo`).
 
 `notary verify` resolves the signer's public key from `--keys-dir` (default
-`./keys`): one file per identity, named with the percent-encoded identity
-plus `.pub`, holding base64 of the 32-byte ed25519 public key. The committed
-`keys/` directory holds the synthetic demo keys for the conformance fixtures
-(not secret).
+`./keys`): one file per identity, named with the percent-encoded identity plus
+`.pub`, holding base64 of the 32-byte ed25519 public key. The committed `keys/`
+directory holds the synthetic demo keys for the conformance fixtures — not secret.
 
-There is no separate `conformance` subcommand: the conformance suite is just
-the fixtures under `conformance/`, which `notary show` walks (positives must
-accept, negatives must reject) and which `tests/test_conformance.py` runs
+There is no `conformance` subcommand. The suite is just the fixtures under
+`conformance/`, which `notary show` walks and `tests/test_conformance.py` runs
 through the verifier.
 
 ## Tests
@@ -64,23 +91,28 @@ uv run pytest -q
 
 ## Live demo
 
-A Streamlit app (`streamlit_app.py`) wraps the reference verifier: pick a
-committed conformance receipt or paste your own, verify it (schema + signer
-resolution + ed25519 signature), and see the linear chain plus a live tamper
-check (flipping one hex digit of the action hash breaks the signature). It
-defaults to the committed conformance receipts and runs entirely off
-committed fixtures and demo keys — no network, no secrets.
-
-Run locally:
+`streamlit_app.py` wraps the reference verifier as a page: pick a committed
+conformance receipt or paste your own, verify it (schema, signer resolution,
+ed25519 signature), see the linear chain, and trip the live tamper check by flipping
+one hex digit of the action hash. It runs entirely off the committed fixtures and
+demo keys — no network, no secrets.
 
 ```bash
 pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-Deploy on Streamlit Community Cloud: New app -> this repo, branch `main`,
-main file `streamlit_app.py`. `requirements.txt` pulls `streamlit` plus the
-verifier's runtime deps (`jsonschema`, `PyNaCl`).
+Deploy on Streamlit Community Cloud: New app -> this repo, branch `main`, main file
+`streamlit_app.py`. `requirements.txt` pulls `streamlit` plus the verifier's runtime
+deps (`jsonschema`, `PyNaCl`).
+
+<!-- live-url: (add the streamlit cloud url here once deployed) -->
+
+## How it connects
+
+- [procurement-negotiation-lab](https://github.com/AthenaTheOwl/procurement-negotiation-lab)
+  — the simulator where the PO commits and payment authorizations get made. This
+  layer is the receipt those commitments would leave behind.
 
 ## Layout
 
@@ -112,12 +144,7 @@ agent-notary-layer/
 
 ## License
 
-MIT for the verifier code (see `LICENSE`). The schema and the RFC are
-intended as CC-BY-4.0; a dedicated `spec/LICENSE.md` recording that split
-is still pending.
-
-## Distribution intent
-
-The spec is intended for submission to the A2A working group and the
-NIST AI RMF public-comment window. The hosted verifier service is a
-separate, commercial concern outside this repo.
+MIT for the verifier code (see `LICENSE`). The schema and the RFC are intended as
+CC-BY-4.0; a dedicated `spec/LICENSE.md` recording that split is still pending.
+</content>
+</invoke>
