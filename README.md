@@ -146,5 +146,3 @@ agent-notary-layer/
 
 MIT for the verifier code (see `LICENSE`). The schema and the RFC are intended as
 CC-BY-4.0; a dedicated `spec/LICENSE.md` recording that split is still pending.
-</content>
-</invoke>
