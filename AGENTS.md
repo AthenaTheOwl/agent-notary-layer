@@ -32,18 +32,27 @@ Not all roles are implemented in v0.
 - RFC prose follows IETF style: "MUST", "SHOULD", "MAY" in caps; one
   normative claim per paragraph.
 
-## Gates (will land in spec 0002)
+## Gates
+
+The runnable gate today is:
 
 ```bash
 uv run pytest
-python scripts/voice_lint.py spec/ docs/
-python scripts/validate_schemas.py
-python scripts/check_conformance_coverage.py
 ```
 
-A schema change without a corresponding RFC paragraph fails the
-coverage gate. A verifier change without a conformance fixture also
-fails.
+The following gate scripts are planned but unbuilt. They MUST NOT be
+listed as runnable commands until the scripts exist in this repo.
+
+- `scripts/voice_lint.py` was named in spec 0001 and is explicitly
+  deferred by `specs/0002-design/tasks.md`.
+- `scripts/validate_schemas.py` was named in spec 0001 and is currently
+  unscheduled after spec 0002.
+- `scripts/check_conformance_coverage.py` was named in spec 0001 and is
+  currently unscheduled after spec 0002.
+
+When implemented, a schema change without a corresponding RFC paragraph
+will fail the coverage gate. A verifier change without a conformance
+fixture will fail the conformance gate.
 
 ## Out of scope
 
