@@ -107,6 +107,14 @@ def _classify(receipt_path: pathlib.Path, keys_dir: pathlib.Path) -> tuple[bool,
     return True, "signature + schema valid"
 
 
+def _display_path(path: pathlib.Path, root: pathlib.Path) -> str:
+    """Show a path relative to the repo root when it sits inside it, so output is machine-independent."""
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def cmd_show(args: argparse.Namespace) -> int:
     """Verify every bundled conformance receipt and print a readable report.
 
@@ -121,8 +129,8 @@ def cmd_show(args: argparse.Namespace) -> int:
     neg = sorted((conf / "negative").glob("*.json"))
 
     print("notary demo -- verifying bundled conformance receipts")
-    print(f"  keys: {keys_dir}")
-    print(f"  conformance: {conf}\n")
+    print(f"  keys: {_display_path(keys_dir, root)}")
+    print(f"  conformance: {_display_path(conf, root)}\n")
 
     ok = True
 

@@ -32,8 +32,8 @@ uv run notary show
 
 ```
 notary demo -- verifying bundled conformance receipts
-  keys: E:\claude_code\random-apps\agent-notary-layer\keys
-  conformance: E:\claude_code\random-apps\agent-notary-layer\conformance
+  keys: keys
+  conformance: conformance
 
 positive (expected: ACCEPT)
   [PASS] chained-second.json    -> accept (signature + schema valid)
