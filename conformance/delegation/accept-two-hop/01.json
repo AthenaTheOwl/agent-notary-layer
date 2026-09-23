@@ -1,0 +1,10 @@
+{
+  "receipt_id": "01J8D0000000000000000GRNT1",
+  "prior_receipt_id": null,
+  "action_canonical_hash": "sha256:e688bb41d67b9b64ca8d4c6d3d4d3ec7203cf216227f0fab6f35897cc1d25d85",
+  "sender_identity": "did:web:example.test/agents/principal-1",
+  "receiver_identity": "did:web:example.test/agents/agent-1",
+  "timestamp": "2026-09-23T09:00:00Z",
+  "signature_algorithm": "ed25519",
+  "signature": "gmcKAHo8WRnhLqevHOJtUPOH/prm6LfQMgj0I4CCpOH95rxQLGPw7h5D2gYurEXSHtS2vON8p/2XM4JW/gaPDA=="
+}

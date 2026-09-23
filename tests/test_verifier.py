@@ -280,4 +280,6 @@ def test_reject_codes_match_design_table():
         "chain_no_root": 8,
         "cycle_detected": 9,
         "key_malformed": 10,
+        "delegation_missing": 11,
+        "delegation_mismatch": 12,
     }

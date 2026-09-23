@@ -1,0 +1,14 @@
+{
+  "receipt_id": "01J8D0000000000000000H0P02",
+  "prior_receipt_id": "01J8D0000000000000000GRNT1",
+  "action_canonical_hash": "sha256:6b2c2c638fa9c4212246d3822d71dd6954049513f58a9530da461169b5dbc613",
+  "sender_identity": "did:web:example.test/agents/agent-2",
+  "receiver_identity": "did:web:example.test/tools/ledger-api",
+  "timestamp": "2026-09-23T09:06:00Z",
+  "signature_algorithm": "ed25519",
+  "authorization": {
+    "authorizing_receipt_id": "01J8D0000000000000000GRNT1",
+    "delegator_identity": "did:web:example.test/agents/principal-1"
+  },
+  "signature": "3xlFRCyt67NCLr3lrmspTTLq50Y8ftSi0QPqc6053c1MZu7EPCH7LRVlLYJHRafKyEYM1BKiMhAvpt1Hm9MBAw=="
+}

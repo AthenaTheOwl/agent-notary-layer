@@ -60,6 +60,16 @@ successor's `prior_receipt_id`. A chain is a linear sequence of
 receipts: exactly one root, each non-root has exactly one predecessor,
 no cycles, no forks.
 
+## 4a. Delegated hops (v0.2)
+
+A receipt MAY carry an `authorization` object, `{authorizing_receipt_id,
+delegator_identity}`, when the sender acts on authority another party
+granted it. The object is part of the signed bytes. When verifying a
+bundle, the authorizing receipt MUST be present and earlier in the chain,
+MUST have been issued by `delegator_identity`, and MUST have been issued
+to this receipt's `sender_identity`. Receipts without `authorization`
+verify exactly as in v0.1.
+
 ## 5. Verifier reject codes
 
 The reference verifier's typed reject codes are part of the spec
@@ -76,6 +86,9 @@ contract:
 | `chain_not_linear`         | more than one root, or a fork.                   |
 | `chain_break`              | a non-root names a predecessor not in the input. |
 | `cycle_detected`           | following predecessors revisits a receipt.       |
+| `delegation_missing`       | cited authorizing receipt is absent or later.    |
+| `delegation_mismatch`      | authorizing receipt came from someone else, or   |
+|                            | granted authority to a different sender.         |
 
 The exit-code mapping is documented in `pyproject.toml`'s console
 script (`notary`) help and in this RFC's machine-readable companion in

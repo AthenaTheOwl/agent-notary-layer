@@ -18,6 +18,7 @@ from notary.verifier import (
     SchemaInvalid,
     SchemaLoadError,
     VerifyError,
+    check_delegation,
     order_and_check,
     verify_receipt,
 )
@@ -75,6 +76,7 @@ def cmd_verify_chain(args: argparse.Namespace) -> int:
                     f"{r['receipt_id']!r}.prior_receipt_id != predecessor.receipt_id"
                 )
             prev_id = r["receipt_id"]
+        check_delegation(ordered)
     except VerifyError as e:
         return _emit_reject(e)
 
