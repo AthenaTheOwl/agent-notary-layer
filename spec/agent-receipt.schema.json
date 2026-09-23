@@ -56,6 +56,24 @@
     "signature_algorithm": {
       "type": "string",
       "enum": ["ed25519"]
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorizing_receipt_id", "delegator_identity"],
+      "properties": {
+        "authorizing_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+          "description": "ULID of the earlier receipt that granted this sender the authority it is using."
+        },
+        "delegator_identity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identity that issued the authorizing receipt."
+        }
+      },
+      "description": "Optional (v0.2). Present when this action uses authority delegated by an earlier receipt. Covered by the signature."
     }
   }
 }

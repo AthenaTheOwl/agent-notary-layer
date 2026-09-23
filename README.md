@@ -83,6 +83,18 @@ There is no `conformance` subcommand. The suite is just the fixtures under
 `conformance/`, which `notary show` walks and `tests/test_conformance.py` runs
 through the verifier.
 
+## Delegated hops
+
+An agent that acts on someone else's authority should be able to prove whose. A receipt can carry an `authorization` object naming the earlier receipt that granted the authority and who issued it; the object is signed with everything else. `verify-chain` then checks that the grant is in the bundle, came first, was issued by the named delegator, and was issued to the agent now using it:
+
+```bash
+uv run notary verify-chain conformance/delegation/accept-two-hop        # accept (2 receipts)
+uv run notary verify-chain conformance/delegation/reject-wrong-grantee  # reject: delegation_mismatch (exit 12)
+uv run notary verify-chain conformance/delegation/reject-missing-grant  # reject: delegation_missing (exit 11)
+```
+
+In the second bundle, agent-2 cites a grant that was made to agent-1. The signatures are all valid. The authority is not. Receipts without `authorization` verify exactly as in v0.1. `scripts/make_delegation_fixtures.py` rebuilds the bundles from synthetic, name-derived seeds.
+
 ## Tests
 
 ```bash

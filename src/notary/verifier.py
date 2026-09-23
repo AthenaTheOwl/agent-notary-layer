@@ -21,6 +21,8 @@ REJECT_CODES: dict[str, int] = {
     "chain_no_root": 8,
     "cycle_detected": 9,
     "key_malformed": 10,
+    "delegation_missing": 11,
+    "delegation_mismatch": 12,
 }
 
 
@@ -71,6 +73,14 @@ class ChainNoRoot(VerifyError):
 
 class CycleDetected(VerifyError):
     code = "cycle_detected"
+
+
+class DelegationMissing(VerifyError):
+    code = "delegation_missing"
+
+
+class DelegationMismatch(VerifyError):
+    code = "delegation_mismatch"
 
 
 _SCHEMA_CACHE: Optional[dict] = None
@@ -272,3 +282,38 @@ def order_and_check(receipts: list[dict]) -> list[dict]:
         raise ChainBreak(f"unreachable receipts: {sorted(unreached)!r}")
 
     return ordered
+
+
+def check_delegation(ordered: list[dict]) -> None:
+    """Check every delegated hop in an ordered, signature-verified chain.
+
+    A receipt with an `authorization` object acts on authority granted by an
+    earlier receipt in the same bundle. That authorizing receipt must:
+    exist in the bundle and come earlier in the chain (else delegation_missing),
+    be issued by the named `delegator_identity`, and be issued *to* this
+    receipt's sender (else delegation_mismatch). Authority cannot be claimed
+    from a grant made to someone else.
+    """
+    position = {r["receipt_id"]: i for i, r in enumerate(ordered)}
+    for i, r in enumerate(ordered):
+        auth = r.get("authorization")
+        if auth is None:
+            continue
+        grant_id = auth["authorizing_receipt_id"]
+        j = position.get(grant_id)
+        if j is None or j >= i:
+            raise DelegationMissing(
+                f"{r['receipt_id']!r} cites authorizing receipt {grant_id!r}, "
+                "which is not earlier in this bundle"
+            )
+        grant = ordered[j]
+        if grant["sender_identity"] != auth["delegator_identity"]:
+            raise DelegationMismatch(
+                f"{grant_id!r} was issued by {grant['sender_identity']!r}, "
+                f"not the named delegator {auth['delegator_identity']!r}"
+            )
+        if grant["receiver_identity"] != r["sender_identity"]:
+            raise DelegationMismatch(
+                f"{grant_id!r} granted authority to {grant['receiver_identity']!r}, "
+                f"but {r['receipt_id']!r} was signed by {r['sender_identity']!r}"
+            )
