@@ -17,10 +17,19 @@ from notary.verifier import (
     FileKeyResolver,
     SchemaInvalid,
     SchemaLoadError,
+    SignatureInvalid,
     VerifyError,
     check_delegation,
     order_and_check,
     verify_receipt,
+)
+from notary.usage import (
+    USAGE_REASONS,
+    UsageInputError,
+    check_use,
+    load_actions,
+    load_payee_passages,
+    summarize,
 )
 
 
@@ -54,6 +63,40 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_bundle(dir_path: pathlib.Path) -> list[dict]:
+    files = sorted(p for p in dir_path.iterdir() if p.is_file() and p.suffix == ".json")
+    return [_load_receipt(fp) for fp in files]
+
+
+def _verify_bundle(
+    receipts: list[dict], keys_dir: pathlib.Path, *, collect_bad_signatures: bool = False
+) -> tuple[list[dict], set[str]]:
+    """Order, verify and link-check a bundle; check its delegated hops.
+
+    With `collect_bad_signatures`, a receipt whose signature fails is recorded
+    and the walk continues; every other failure raises as in `verify-chain`.
+    Returns the ordered receipts and the ids whose signature failed.
+    """
+    ordered = order_and_check(receipts)
+    resolver = FileKeyResolver(keys_dir)
+    bad_signatures: set[str] = set()
+    prev_id: Optional[str] = None
+    for r in ordered:
+        try:
+            verify_receipt(r, resolver)
+        except SignatureInvalid:
+            if not collect_bad_signatures:
+                raise
+            bad_signatures.add(r["receipt_id"])
+        if prev_id is not None and r.get("prior_receipt_id") != prev_id:
+            raise ChainBreak(
+                f"{r['receipt_id']!r}.prior_receipt_id != predecessor.receipt_id"
+            )
+        prev_id = r["receipt_id"]
+    check_delegation(ordered)
+    return ordered, bad_signatures
+
+
 def cmd_verify_chain(args: argparse.Namespace) -> int:
     dir_path = pathlib.Path(args.directory)
     keys_dir = pathlib.Path(args.keys_dir)
@@ -61,27 +104,57 @@ def cmd_verify_chain(args: argparse.Namespace) -> int:
         print(f"reject: schema_invalid: {dir_path} is not a directory", file=sys.stderr)
         return REJECT_CODES["schema_invalid"]
 
-    files = sorted(p for p in dir_path.iterdir() if p.is_file() and p.suffix == ".json")
-    receipts: list[dict] = []
     try:
-        for fp in files:
-            receipts.append(_load_receipt(fp))
-        ordered = order_and_check(receipts)
-        resolver = FileKeyResolver(keys_dir)
-        prev_id: Optional[str] = None
-        for r in ordered:
-            verify_receipt(r, resolver)
-            if prev_id is not None and r.get("prior_receipt_id") != prev_id:
-                raise ChainBreak(
-                    f"{r['receipt_id']!r}.prior_receipt_id != predecessor.receipt_id"
-                )
-            prev_id = r["receipt_id"]
-        check_delegation(ordered)
+        ordered, _ = _verify_bundle(_load_bundle(dir_path), keys_dir)
     except VerifyError as e:
         return _emit_reject(e)
 
     print(f"accept ({len(ordered)} receipts)")
     return 0
+
+
+def cmd_verify_usage(args: argparse.Namespace) -> int:
+    """Judge every receipt in a billing period as one billed use (RFC-001 §4b).
+
+    Exit 0 when every billed use verifies, 1 when any is rejected. A chain-level
+    failure ends the run with its own reject code, as in `verify-chain`.
+    """
+    dir_path = pathlib.Path(args.directory)
+    keys_dir = pathlib.Path(args.keys_dir)
+    if not dir_path.is_dir():
+        print(f"reject: schema_invalid: {dir_path} is not a directory", file=sys.stderr)
+        return REJECT_CODES["schema_invalid"]
+
+    try:
+        passages = load_payee_passages(pathlib.Path(args.content))
+        actions = load_actions(pathlib.Path(args.actions))
+        ordered, bad_signatures = _verify_bundle(
+            _load_bundle(dir_path), keys_dir, collect_bad_signatures=True
+        )
+    except UsageInputError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    except VerifyError as e:
+        return _emit_reject(e)
+
+    rejected: list[str] = []
+    for r in ordered:
+        rid = r["receipt_id"]
+        if rid in bad_signatures:
+            code = SignatureInvalid.code
+        else:
+            try:
+                action = check_use(r, actions, passages)
+            except VerifyError as e:
+                code = e.code
+            else:
+                print(f"  [verified] {rid}  answer {action['answer_id']}")
+                continue
+        rejected.append(code)
+        print(f"  [rejected] {rid}  {USAGE_REASONS[code]} ({code})")
+
+    print(summarize(len(ordered), rejected))
+    return 1 if rejected else 0
 
 
 def _repo_root() -> pathlib.Path:
@@ -203,6 +276,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="directory holding <percent-encoded-identity>.pub files (default: ./keys)",
     )
     c.set_defaults(func=cmd_verify_chain)
+
+    u = sub.add_parser(
+        "verify-usage",
+        help="check a billing period of usage receipts against the payee's content",
+    )
+    u.add_argument("directory", help="directory containing the period's receipt .json files")
+    u.add_argument(
+        "--actions",
+        required=True,
+        help="JSON Lines file of the usage actions the receipts' hashes cover",
+    )
+    u.add_argument(
+        "--content",
+        required=True,
+        help="payee content directory; every .txt file under it is split into passages",
+    )
+    u.add_argument(
+        "--keys-dir",
+        default="./keys",
+        help="directory holding <percent-encoded-identity>.pub files (default: ./keys)",
+    )
+    u.set_defaults(func=cmd_verify_usage)
 
     for name in ("show", "demo"):
         s = sub.add_parser(

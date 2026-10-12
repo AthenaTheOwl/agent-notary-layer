@@ -71,8 +71,8 @@ uv run notary show
 ```
 
 `python -m notary <subcommand>` works the same way (the package ships a `__main__`).
-Run `uv run notary --help` for the full list: `verify`, `verify-chain`, `show`
-(alias `demo`).
+Run `uv run notary --help` for the full list: `verify`, `verify-chain`,
+`verify-usage`, `show` (alias `demo`).
 
 `notary verify` resolves the signer's public key from `--keys-dir` (default
 `./keys`): one file per identity, named with the percent-encoded identity plus
@@ -94,6 +94,25 @@ uv run notary verify-chain conformance/delegation/reject-missing-grant  # reject
 ```
 
 In the second bundle, agent-2 cites a grant that was made to agent-1. The signatures are all valid. The authority is not. Receipts without `authorization` verify exactly as in v0.1. `scripts/make_delegation_fixtures.py` rebuilds the bundles from synthetic, name-derived seeds.
+
+## Usage receipts
+
+A usage receipt ties each billed use to the hash of the passage it used, so the content owner can check every line of an invoice against its own text and reject uses that cite nothing it holds. The receipt format does not change. Its `action_canonical_hash` covers a usage action, `{kind: "usage", passage_sha256, answer_id, source_id}`, which the payer sends alongside the receipts. `verify-usage` checks the chain as `verify-chain` does and recomputes each action's hash. It then splits the payee's `.txt` files into passages (runs of non-blank lines, sha256 each) and judges every billed use:
+
+```bash
+uv run notary verify-usage conformance/usage/billing-period-01 \
+  --actions conformance/usage/billing-period-01/actions.jsonl \
+  --content conformance/usage/content --keys-dir keys
+```
+
+```
+  [verified] 01JA9000000000000000PAY001  answer ans-0412
+  [verified] 01JA9000000000000000PAY002  answer ans-0413
+  [rejected] 01JA9000000000000000PAY003  passage not in payee content (usage_passage_unknown)
+billed 3, verified 2, rejected 1 (passage not in payee content)
+```
+
+The third receipt has a valid signature, and its action matches the signed hash. The passage it cites appears nowhere in the publisher's text. A use can be rejected for a bad signature, a hash mismatch, or a passage not in payee content. The command exits 1 when any use is rejected. Payer and payee have to split text the same way, or honest uses get rejected; RFC-001 §4b fixes one rule. Payment flows such as [x402](https://developers.cloudflare.com/agents/agentic-payments/x402/) are out of scope: this checks the receipts and nothing more. `scripts/make_usage_fixtures.py` rebuilds the bundle from the same synthetic seed derivation as the delegation bundles.
 
 ## Tests
 
@@ -136,11 +155,15 @@ agent-notary-layer/
   src/notary/
     canonical.py                # RFC 8785 JCS canonicalizer
     verifier.py                 # schema + key + signature + chain checks
-    cli.py                      # verify / verify-chain / show
+    usage.py                    # usage actions + passage hashing (RFC-001 §4b)
+    cli.py                      # verify / verify-chain / verify-usage / show
     __main__.py                 # enables `python -m notary`
   conformance/
     positive/                   # fixtures that must accept
     negative/                   # fixtures that must reject
+    delegation/                 # delegated-hop bundles (RFC-001 §4a)
+    usage/                      # a billing period + the payee's content (§4b)
+  scripts/                      # rebuild the delegation and usage fixtures
   keys/                         # synthetic demo public keys for the fixtures
   tests/                        # unit + end-to-end conformance tests
   streamlit_app.py              # live demo (Streamlit Community Cloud)

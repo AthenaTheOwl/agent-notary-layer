@@ -70,6 +70,46 @@ MUST have been issued by `delegator_identity`, and MUST have been issued
 to this receipt's `sender_identity`. Receipts without `authorization`
 verify exactly as in v0.1.
 
+## 4b. Usage actions (v0.3)
+
+A usage action records one use of a payee's content. It is a JSON object
+with exactly the four fields below. The receipt gains no fields: the
+action travels beside the receipt, and the receipt's
+`action_canonical_hash` MUST be `sha256:` + the SHA-256 of the action's
+JCS form (§2).
+
+| field            | type   | normative shape                                              |
+|------------------|--------|--------------------------------------------------------------|
+| `kind`           | string | Literal `"usage"`.                                           |
+| `passage_sha256` | string | 64 lowercase hex chars: SHA-256 of the passage's UTF-8 bytes.|
+| `answer_id`      | string | Payer's identifier for the answer that used the passage.     |
+|                  |        | Non-empty.                                                   |
+| `source_id`      | string | Identifier for the payee source the passage came from.       |
+|                  |        | Non-empty.                                                   |
+
+Payer and payee MUST split content into passages by one rule. The text is
+decoded as UTF-8, a leading byte-order mark is dropped, and CRLF and CR
+become LF. A blank line is empty or holds only spaces and tabs. A passage
+is a maximal run of non-blank lines, kept as written and joined with LF.
+
+A different split produces different hashes and rejects honest uses. A
+payer that quotes part of a passage MUST still hash the whole passage it
+came from.
+
+When checking a billing period, a verifier MUST first verify the bundle
+as a chain under §4 and §4a. It MUST then judge each receipt as one
+billed use.
+
+A billed use is verified only when its signature is valid, a disclosed
+usage action hashes to its `action_canonical_hash`, and that action's
+`passage_sha256` names a passage in the payee's own content.
+
+A verifier MUST report every rejected use with its reject code, and MUST
+NOT stop at the first rejected use.
+
+This section verifies receipts. Pricing, settlement, and payment flows
+such as HTTP 402 are out of scope.
+
 ## 5. Verifier reject codes
 
 The reference verifier's typed reject codes are part of the spec
@@ -89,6 +129,16 @@ contract:
 | `delegation_missing`       | cited authorizing receipt is absent or later.    |
 | `delegation_mismatch`      | authorizing receipt came from someone else, or   |
 |                            | granted authority to a different sender.         |
+| `usage_hash_mismatch`      | no disclosed usage action hashes to the          |
+|                            | receipt's `action_canonical_hash`.               |
+| `usage_passage_unknown`    | the usage action's passage is not in the payee's |
+|                            | content.                                         |
+
+`usage_hash_mismatch` and `usage_passage_unknown` are per-use codes
+(§4b). The reference `verify-usage` command reports them, and
+`signature_invalid`, against each rejected use and keeps going. It exits
+0 when every billed use verifies and 1 when any use is rejected. Any
+other code ends the run with its own exit code, as in `verify-chain`.
 
 The exit-code mapping is documented in `pyproject.toml`'s console
 script (`notary`) help and in this RFC's machine-readable companion in
