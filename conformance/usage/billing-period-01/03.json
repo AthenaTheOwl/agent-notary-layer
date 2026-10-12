@@ -1,0 +1,10 @@
+{
+  "receipt_id": "01JA9000000000000000PAY003",
+  "prior_receipt_id": "01JA9000000000000000PAY002",
+  "action_canonical_hash": "sha256:235c2cdcfae313c2dae8992c6373cb060057780468b6fe5aaf33f52934df12fc",
+  "sender_identity": "did:web:example.test/agents/answer-engine-1",
+  "receiver_identity": "did:web:example.test/publishers/press-1",
+  "timestamp": "2026-10-06T11:02:00Z",
+  "signature_algorithm": "ed25519",
+  "signature": "4E4X5kRc5o5a8drw883ASaWggTCZnustBvlUZIz22OW6hOjEvtjHZVNmozXtU2MZiPCqsbpwhkePoJjBbVJADQ=="
+}
