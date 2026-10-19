@@ -26,9 +26,7 @@ when the implementation changes; a previously passing result can remain valid
 history while no longer covering the current revision.
 
 The research lead is [Audit Without Verification](https://arxiv.org/abs/2609.07680).
-[AI Product Team's change workflow](https://github.com/3orionkings/ai-product-team/blob/main/workflows/process-change.md)
-provides a workflow vocabulary for historical evidence and current applicability.
-Neither makes this verifier a truth oracle. Do not put private source passages,
+It does not make this verifier a truth oracle. Do not put private source passages,
 API keys, or the full business payload into a public receipt to make a handoff
 look more complete. Publish only evidence you are authorized to disclose.
 
