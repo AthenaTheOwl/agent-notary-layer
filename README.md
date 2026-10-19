@@ -141,6 +141,11 @@ deps (`jsonschema`, `PyNaCl`).
 
 ## How it connects
 
+[Signed review handoffs](docs/review-handoff-receipts.md) explains how patch and
+test evidence can be bound to an ordinary receipt, which conclusions the current
+verifier establishes, and why a valid signature leaves factual support and
+current test applicability as separate review questions.
+
 - [procurement-negotiation-lab](https://github.com/AthenaTheOwl/procurement-negotiation-lab)
   — the simulator where the PO commits and payment authorizations get made. This
   layer is the receipt those commitments would leave behind.
