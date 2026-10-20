@@ -7,15 +7,18 @@ and whether the tests establish the desired behavior. A receipt addresses the
 first question under the verifier's key and chain assumptions.
 
 The delegation bundle supplies a useful example of the distinction. A bundle
-with the wrong grantee has valid signatures and fails the authority check. Run the
-README's `verify-chain` example to reproduce it. The verifier checks a declared
+with the wrong grantee has valid signatures and fails the authority check. Run
+`uv run notary verify-chain conformance/delegation/reject-wrong-grantee` (README,
+Delegated hops) to reproduce it: it rejects with `delegation_mismatch` and exits
+12. The verifier checks a declared
 grant relationship as well as the signed bytes; a signature alone would leave
 that relationship unresolved.
 
 An integration should keep the patch digest, test-receipt digest, tested revision,
 environment fingerprint and review result in an external action or evidence
-artifact. Canonicalize that artifact using the agreed protocol and put its hash
-in the existing receipt. Keep the artifact available to the reviewer. These are
+artifact. Canonicalize that artifact with RFC 8785 JCS, hash it with SHA-256, and
+use the result as the `action_canonical_hash` of a new receipt in the existing
+format. Keep the artifact available to the reviewer. These are
 integration recommendations; the current receipt schema does not validate a test
 receipt's meaning or attest that a sandbox executed honestly.
 
@@ -26,13 +29,14 @@ when the implementation changes; a previously passing result can remain valid
 history while no longer covering the current revision.
 
 The research lead is [Audit Without Verification](https://arxiv.org/abs/2609.07680).
-[AI Product Team's change workflow](https://github.com/3orionkings/ai-product-team/blob/main/workflows/process-change.md)
-provides a workflow vocabulary for historical evidence and current applicability.
-Neither makes this verifier a truth oracle. Do not put private source passages,
+It does not make this verifier a truth oracle. Do not put private source passages,
 API keys, or the full business payload into a public receipt to make a handoff
 look more complete. Publish only evidence you are authorized to disclose.
 
-A small adoption experiment needs one author, one independent reviewer, the
-existing synthetic keys, and two patch revisions. Verify the receipts for both;
-then show that a test receipt tied to revision A cannot by itself approve B.
+A small adoption experiment needs one author, one independent reviewer, a pair
+of throwaway signing keys of its own (the conformance suite's synthetic seeds must
+not be reused outside it), and two patch revisions. Verify the receipts for both;
+then show that a test receipt tied to revision A cannot by itself approve B. The
+notary verifier will accept both well-signed receipts; the stale-evidence finding
+comes from the integration comparing the tested revision with the patch digest.
 Success is an explicit stale-evidence finding, even when every signature passes.

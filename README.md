@@ -177,6 +177,7 @@ agent-notary-layer/
     pactum_replay/              # worked example (pending)
   specs/                        # design specs
   docs/first-pr.md
+  docs/review-handoff-receipts.md
   AGENTS.md
   LICENSE
   README.md
