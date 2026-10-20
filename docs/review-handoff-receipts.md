@@ -33,7 +33,10 @@ It does not make this verifier a truth oracle. Do not put private source passage
 API keys, or the full business payload into a public receipt to make a handoff
 look more complete. Publish only evidence you are authorized to disclose.
 
-A small adoption experiment needs one author, one independent reviewer, the
-existing synthetic keys, and two patch revisions. Verify the receipts for both;
-then show that a test receipt tied to revision A cannot by itself approve B.
+A small adoption experiment needs one author, one independent reviewer, a pair
+of throwaway signing keys of its own (the conformance suite's synthetic seeds must
+not be reused outside it), and two patch revisions. Verify the receipts for both;
+then show that a test receipt tied to revision A cannot by itself approve B. The
+notary verifier will accept both well-signed receipts; the stale-evidence finding
+comes from the integration comparing the tested revision with the patch digest.
 Success is an explicit stale-evidence finding, even when every signature passes.
