@@ -16,8 +16,9 @@ that relationship unresolved.
 
 An integration should keep the patch digest, test-receipt digest, tested revision,
 environment fingerprint and review result in an external action or evidence
-artifact. Canonicalize that artifact using the agreed protocol and put its hash
-in the existing receipt. Keep the artifact available to the reviewer. These are
+artifact. Canonicalize that artifact with RFC 8785 JCS, hash it with SHA-256, and
+use the result as the `action_canonical_hash` of a new receipt in the existing
+format. Keep the artifact available to the reviewer. These are
 integration recommendations; the current receipt schema does not validate a test
 receipt's meaning or attest that a sandbox executed honestly.
 
