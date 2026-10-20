@@ -7,8 +7,10 @@ and whether the tests establish the desired behavior. A receipt addresses the
 first question under the verifier's key and chain assumptions.
 
 The delegation bundle supplies a useful example of the distinction. A bundle
-with the wrong grantee has valid signatures and fails the authority check. Run the
-README's `verify-chain` example to reproduce it. The verifier checks a declared
+with the wrong grantee has valid signatures and fails the authority check. Run
+`uv run notary verify-chain conformance/delegation/reject-wrong-grantee` (README,
+Delegated hops) to reproduce it: it rejects with `delegation_mismatch` and exits
+12. The verifier checks a declared
 grant relationship as well as the signed bytes; a signature alone would leave
 that relationship unresolved.
 
